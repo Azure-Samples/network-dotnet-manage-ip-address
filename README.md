@@ -4,14 +4,14 @@ platforms: .Net
 author: selvasingh
 ---
 
-#Getting Started with Network - Manage IP Address - in .Net #
+#Getting Started with Network - Manage I P Address - in .Net #
 
-      Azure Network sample for managing IP address -
-       - Assign a public IP address for a virtual machine during its creation
-       - Assign a public IP address for a virtual machine through an virtual machine update action
-       - Get the associated public IP address for a virtual machine
-       - Get the assigned public IP address for a virtual machine
-       - Remove a public IP address from a virtual machine.
+          Azure Network sample for managing IP address -
+           - Assign a public IP address for a virtual machine during its creation
+           - Assign a public IP address for a virtual machine through an virtual machine update action
+           - Get the associated public IP address for a virtual machine
+           - Get the assigned public IP address for a virtual machine
+           - Remove a public IP address from a virtual machine.
 
 
 ## Running this Sample ##
