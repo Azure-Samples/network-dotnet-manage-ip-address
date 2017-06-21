@@ -4,7 +4,7 @@ platforms: .Net
 author: selvasingh
 ---
 
-#Getting Started with Network - Manage I P Address - in .Net #
+# Getting Started with Network - Manage I P Address - in .Net #
 
           Azure Network sample for managing IP address -
            - Assign a public IP address for a virtual machine during its creation
