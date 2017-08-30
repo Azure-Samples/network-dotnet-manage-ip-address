@@ -1,0 +1,4 @@
+C:\Sources\dotnet-samples\network-dotnet-manage-ip-address\bin\Debug\net452\ManageIPAddress.runtimeconfig.json
+C:\Sources\dotnet-samples\network-dotnet-manage-ip-address\bin\Debug\net452\ManageIPAddress.runtimeconfig.dev.json
+C:\Sources\dotnet-samples\network-dotnet-manage-ip-address\obj\Debug\net452\ManageIPAddress.csproj.ManageIPAddress.exe.config
+C:\Sources\dotnet-samples\network-dotnet-manage-ip-address\obj\Debug\net452\ManageIPAddress.csproj.CoreCompileInputs.cache
