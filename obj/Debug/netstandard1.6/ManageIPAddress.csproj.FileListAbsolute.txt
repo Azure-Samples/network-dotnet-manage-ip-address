@@ -1,2 +1,0 @@
-C:\Sources\dotnet-samples\network-dotnet-manage-ip-address\bin\Debug\netstandard1.6\ManageIPAddress.deps.json
-C:\Sources\dotnet-samples\network-dotnet-manage-ip-address\obj\Debug\netstandard1.6\ManageIPAddress.csproj.CoreCompileInputs.cache
