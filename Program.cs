@@ -37,16 +37,17 @@ namespace ManageIPAddress
             string publicIPAddressName2 = Utilities.CreateRandomName("pip2-");
             string publicIPAddressLeafDNS1 = Utilities.CreateRandomName("dns-pip1-");
             string publicIPAddressLeafDNS2 = Utilities.CreateRandomName("dns-pip2-");
-            string nicName = Utilities.CreateRandomName("nic");
-            string vmName = Utilities.CreateRandomName("vm");
+            string nicName1 = Utilities.CreateRandomName("nic1-");
+            string nicName2 = Utilities.CreateRandomName("nic2-");
 
+            try
             {
                 // Get default subscription
                 SubscriptionResource subscription = await client.GetDefaultSubscriptionAsync();
 
                 // Create a resource group in the EastUS region
                 string rgName = Utilities.CreateRandomName("NetworkSampleRG");
-                Utilities.Log($"creating resource group...");
+                Utilities.Log($"Creating resource group...");
                 ArmOperation<ResourceGroupResource> rgLro = await subscription.GetResourceGroups().CreateOrUpdateAsync(WaitUntil.Completed, rgName, new ResourceGroupData(AzureLocation.EastUS));
                 ResourceGroupResource resourceGroup = rgLro.Value;
                 _resourceGroupId = resourceGroup.Id;
@@ -75,14 +76,17 @@ namespace ManageIPAddress
 
                 Utilities.Log("Creating a Windows VM...");
                 VirtualNetworkResource vnet = await Utilities.GetVirtualNetwork(resourceGroup);
-                NetworkInterfaceResource nic = await Utilities.GetNetworkInterface(resourceGroup, vnet, publicIP1.Data.Id, nicName);
+                NetworkInterfaceResource nic = await Utilities.GetNetworkInterface(resourceGroup, vnet, publicIP1.Data.Id, nicName1);
                 VirtualMachineResource vm = await Utilities.GetVirtualMachine(resourceGroup, nic.Data.Id);
                 Utilities.Log($"Created VM: {vm.Data.Name}");
 
                 //============================================================
                 // Gets the public IP address associated with the VM's primary NIC
 
-                Utilities.Log("NIC primary IP config: " + nic.Data.IPConfigurations.First(item => item.Primary == true).Name);
+                string attachedNicName = vm.Data.NetworkProfile.NetworkInterfaces.First().Id.Name;
+                string associatedPIP = nic.Data.IPConfigurations.First().PublicIPAddress.Id.Name;
+                Utilities.Log($"Current vm attached NIC: {attachedNicName}");
+                Utilities.Log($"{attachedNicName} associated public ip: {associatedPIP}");
 
                 //============================================================
                 // Assign a new public IP address for the VM
@@ -102,11 +106,17 @@ namespace ManageIPAddress
                 PublicIPAddressResource publicIP2 = publicIPLro2.Value;
                 Utilities.Log($"Created a public IP address: {publicIP2.Data.Name}");
 
-                // Update VM's primary NIC to use the new public IP address
+                // Created a new NIC with PublicIP2
+                Utilities.Log($"Creating a new NIC...");
+                var nic2 = await Utilities.GetNetworkInterface(resourceGroup, vnet, publicIP2.Data.Id, nicName2);
+                Utilities.Log($"Created a new NIC: {nic2.Data.Name}");
 
+                // Update VM's primary NIC to use the new public IP address
                 Utilities.Log("Updating the VM's primary NIC with new public IP address...");
-                Utilities.Log("Temporary stop vm...");
+                Utilities.Log("Stop vm for update its attached NIC...");
                 await vm.DeallocateAsync(WaitUntil.Completed);
+
+                Utilities.Log("Updating vm to attach a new NIC...");
                 VirtualMachinePatch updateVmInput = new VirtualMachinePatch()
                 {
                     NetworkProfile = new VirtualMachineNetworkProfile()
@@ -115,7 +125,7 @@ namespace ManageIPAddress
                         {
                             new VirtualMachineNetworkInterfaceReference()
                             {
-                                Id = nic.Data.Id,
+                                Id = nic2.Data.Id,
                                 Primary = true,
                             }
                         }
@@ -125,82 +135,58 @@ namespace ManageIPAddress
                 vm = updateVmLro.Value;
 
 
-
-
-
-
-                // Created a new NIC with PublicIP2
-                Utilities.Log($"Created a new NIC with {publicIP2.Data.Name}...");
-                string newIPConfigName = "new-config";
-                ResourceIdentifier subnetId = (await vnet.GetSubnets().GetAsync("default")).Value.Data.Id;
-                var subnetInput = new NetworkInterfaceData()
-                {
-                    Location = resourceGroup.Data.Location,
-                };
-                subnetInput.IPConfigurations.Add(nic.Data.IPConfigurations.First());
-                subnetInput.IPConfigurations.First().Primary = false;
-                subnetInput.IPConfigurations.Add(
-                     new NetworkInterfaceIPConfigurationData()
-                     {
-                         Name = "default-config",
-                         Primary = true,
-                         PrivateIPAllocationMethod = NetworkIPAllocationMethod.Dynamic,
-                         PublicIPAddress = new PublicIPAddressData()
-                         {
-                             Id = publicIP2.Data.Id
-                         },
-                         Subnet = new SubnetData()
-                         {
-                             Id = subnetId
-                         }
-                     });
-
-                var networkInterfaceLro = await resourceGroup.GetNetworkInterfaces().CreateOrUpdateAsync(WaitUntil.Completed, nicName, subnetInput);
-                nic = networkInterfaceLro.Value;
-                Utilities.Log($"Created a new ip config: {newIPConfigName}");
-                Console.WriteLine();
-
-
-
-                //var primaryNetworkInterface = vm.GetPrimaryNetworkInterface();
-                //primaryNetworkInterface.Update()
-                //        .WithExistingPrimaryPublicIPAddress(publicIPAddress2)
-                //        .Apply();
-
                 //============================================================
                 // Gets the updated public IP address associated with the VM
 
                 // Get the associated public IP address for a virtual machine
-                //Utilities.Log("Public IP address associated with the VM's primary NIC [After Update]");
-                //vm.Refresh();
-                //Utilities.PrintIPAddress(vm.GetPrimaryPublicIPAddress());
+                attachedNicName = vm.Data.NetworkProfile.NetworkInterfaces.First().Id.Name;
+                associatedPIP = nic2.Data.IPConfigurations.First().PublicIPAddress.Id.Name;
+                nic = await resourceGroup.GetNetworkInterfaces().GetAsync(nicName1);
+                Utilities.Log($"After update, vm attached NIC: {attachedNicName}");
+                Utilities.Log($"After update, {attachedNicName} associated public ip: {associatedPIP}");
 
-                ////============================================================
-                //// Remove public IP associated with the VM
+                //============================================================
+                // Remove public IP associated with the VM
 
-                //Utilities.Log("Removing public IP address associated with the VM");
-                //vm.Refresh();
-                //primaryNetworkInterface = vm.GetPrimaryNetworkInterface();
-                //publicIPAddress = primaryNetworkInterface.PrimaryIPConfiguration.GetPublicIPAddress();
-                //primaryNetworkInterface.Update()
-                //        .WithoutPrimaryPublicIPAddress()
-                //        .Apply();
-
-                //Utilities.Log("Removed public IP address associated with the VM");
+                Utilities.Log("Removing public IP address associated with the VM...");
+                var subnetLro = await vnet.GetSubnets().GetAsync("default");
+                var subnetId = subnetLro.Value.Data.Id;
+                var subnetInput = new NetworkInterfaceData()
+                {
+                    Location = resourceGroup.Data.Location,
+                    IPConfigurations =
+                    {
+                        new NetworkInterfaceIPConfigurationData()
+                        {
+                            Name = "default-config",
+                            PrivateIPAllocationMethod = NetworkIPAllocationMethod.Dynamic,
+                            Subnet = new SubnetData()
+                            {
+                                Id = subnetId
+                            }
+                        }
+                    }
+                };
+                var updateNicLro = await resourceGroup.GetNetworkInterfaces().CreateOrUpdateAsync(WaitUntil.Completed, nicName2, subnetInput);
+                nic2 = updateNicLro.Value;
+                Utilities.Log("Removed public IP address associated with the VM");
+                Utilities.Log($"nic2 associated public ip is null: {nic2.Data.IPConfigurations.First().PublicIPAddress is null}");
 
                 //============================================================
                 // Delete the public ip
-                Utilities.Log("Deleting the public IP address");
+                Utilities.Log("Deleting the public IP address...");
+                await publicIP2.DeleteAsync(WaitUntil.Completed);
                 Utilities.Log("Deleted the public IP address");
             }
+            finally
             {
                 try
                 {
                     if (_resourceGroupId is not null)
                     {
-                        Utilities.Log($"Deleting Resource Group: {_resourceGroupId}");
+                        Utilities.Log($"Deleting Resource Group...");
                         await client.GetResourceGroupResource(_resourceGroupId).DeleteAsync(WaitUntil.Completed);
-                        Utilities.Log($"Deleted Resource Group: {_resourceGroupId}");
+                        Utilities.Log($"Deleted Resource Group: {_resourceGroupId.Name}");
                     }
                 }
                 catch (NullReferenceException)
@@ -216,19 +202,18 @@ namespace ManageIPAddress
 
         public static async Task Main(string[] args)
         {
-            var clientId = Environment.GetEnvironmentVariable("CLIENT_ID");
-            var clientSecret = Environment.GetEnvironmentVariable("CLIENT_SECRET");
-            var tenantId = Environment.GetEnvironmentVariable("TENANT_ID");
-            var subscription = Environment.GetEnvironmentVariable("SUBSCRIPTION_ID");
-            ClientSecretCredential credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
-            ArmClient client = new ArmClient(credential, subscription);
-
-            await RunSample(client);
             try
             {
                 //=================================================================
                 // Authenticate
+                var clientId = Environment.GetEnvironmentVariable("CLIENT_ID");
+                var clientSecret = Environment.GetEnvironmentVariable("CLIENT_SECRET");
+                var tenantId = Environment.GetEnvironmentVariable("TENANT_ID");
+                var subscription = Environment.GetEnvironmentVariable("SUBSCRIPTION_ID");
+                ClientSecretCredential credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+                ArmClient client = new ArmClient(credential, subscription);
 
+                await RunSample(client);
             }
             catch (Exception ex)
             {
